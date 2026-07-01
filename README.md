@@ -3,9 +3,38 @@
 [![CI](https://github.com/PlatformStackPulse/tf-atom-lb-listener-rule-aws/actions/workflows/ci.yml/badge.svg)](https://github.com/PlatformStackPulse/tf-atom-lb-listener-rule-aws/actions/workflows/ci.yml)
 ![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.6.0-blueviolet)
 
-## Purpose
+Terraform atom module that manages a single **AWS Application Load Balancer listener rule**, forwarding matched requests to a target group based on path and/or host-header conditions. Naming and tagging are driven by the [tf-label](https://github.com/PlatformStackPulse/tf-label) context, so the rule inherits consistent, environment-aware labels.
 
-Terraform atom: AWS LB Listener Rule - routes traffic based on path or host patterns.
+## Features
+
+- Creates one `aws_lb_listener_rule` with a `forward` action to a target group.
+- Optional **path-pattern** matching (e.g. `/api/*`) via `path_patterns`.
+- Optional **host-header** matching via `host_headers`.
+- Configurable rule `priority` (1–50000), with input validation on the listener/target-group ARNs.
+- `enabled` toggle (via tf-label context) to create or suppress the resource without removing the module call.
+- Standardized naming/tagging through the tf-label context (`namespace`, `stage`, `name`, `tags`, ...).
+
+## Usage
+
+```hcl
+module "api_listener_rule" {
+  source = "git::https://github.com/PlatformStackPulse/tf-atom-lb-listener-rule-aws.git?ref=v1.0.0"
+
+  # tf-label context
+  namespace = "eg"
+  stage     = "prod"
+  name      = "api"
+
+  # required inputs
+  listener_arn     = aws_lb_listener.https.arn
+  target_group_arn = aws_lb_target_group.api.arn
+  priority         = 100
+
+  # optional matching conditions
+  path_patterns = ["/api/*"]
+  # host_headers = ["api.example.com"]
+}
+```
 
 ## Module Documentation
 
@@ -70,3 +99,16 @@ Terraform atom: AWS LB Listener Rule - routes traffic based on path or host patt
 | <a name="output_enabled"></a> [enabled](#output\_enabled) | Whether the module is enabled |
 | <a name="output_id"></a> [id](#output\_id) | ID of the listener rule |
 <!-- END_TF_DOCS -->
+
+## Tests
+
+Unit tests use the native `terraform test` framework with a mock AWS provider (no real AWS calls). They assert on plan-known values — the `enabled` flag, planned resource count, and input pass-throughs — and verify the disabled path creates nothing.
+
+```bash
+# Run unit tests
+terraform init -backend=false
+terraform test -test-directory=tests/unit
+
+# Or via the Makefile
+make test-unit
+```
